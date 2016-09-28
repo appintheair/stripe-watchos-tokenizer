@@ -50,3 +50,6 @@ Then in `PKPaymentAuthorizationControllerDelegate` handle successful payment's a
     }
 }
 ```
+## License
+
+Stripe_watchOS is available under the MIT license. See the LICENSE file for more info.
