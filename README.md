@@ -8,7 +8,7 @@ pod 'Stripe_watchOS'
 ```
 If you want to use Swift 2.3 version then use:
 ```
-pod 'Stripe_watchOS', :branch => 'swift-2.3'
+pod 'Stripe_watchOS', :git => 'https://github.com/appintheair/stripe-watchos-tokenizer.git', :branch => 'swift-2.3'
 ```
 
 ## Usage
