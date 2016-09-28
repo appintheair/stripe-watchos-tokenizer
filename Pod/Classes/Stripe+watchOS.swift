@@ -29,14 +29,14 @@ public struct StripeToken {
 public class WatchOSStripeManager {
 
     ///Should call this before providing making any requests
-    public class func providePublishableKey(key: String) {
-        let sessionConfiguration = NSURLSessionConfiguration.defaultSessionConfiguration()
-        sessionConfiguration.HTTPAdditionalHeaders = [
+    public class func provide(publishableKey key: String) {
+        let sessionConfiguration = URLSessionConfiguration.default
+        sessionConfiguration.httpAdditionalHeaders = [
             "X-Stripe-User-Agent": WatchOSStripeManager.stripeUserAgentDetails(),
             "Stripe-Version": StripeAPIVersion,
             "Authorization": "Bearer \(key)"
         ]
-        sharedManager.urlSession = NSURLSession(configuration: sessionConfiguration)
+        sharedManager.urlSession = URLSession(configuration: sessionConfiguration)
     }
 
     private init() {
@@ -46,45 +46,45 @@ public class WatchOSStripeManager {
     ///Main entry point
     public static let sharedManager = WatchOSStripeManager()
 
-    private var urlSession: NSURLSession!
+    private var urlSession: URLSession!
 
     ///The simplest requests wrapper
-    private func startRequest(endpoint: String, postData: NSData, completion: (Any?, NSError?) -> Void) {
+    private func startRequest(endpoint: String, postData: Data, completion: @escaping (Any?, Error?) -> Void) {
         assert(urlSession != nil, "Publishable key should be provided before making a request")
 
-        let url = StripeBaseURL.URLByAppendingPathComponent(endpoint)!
-        let request = NSMutableURLRequest(URL: url)
-        request.HTTPMethod = "POST"
-        request.HTTPBody = postData
+        let url = StripeBaseURL.appendingPathComponent(endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = postData
 
-        urlSession.dataTaskWithRequest(request) { body, response, error in
+        urlSession.dataTask(with: request) { body, response, error in
 
             if let error = error {
-                dispatch_async(dispatch_get_main_queue()) {
+                DispatchQueue.main.async {
                     completion(nil, error)
                 }
                 return
             }
 
             do {
-                if let body = body, json = try NSJSONSerialization.JSONObjectWithData(body, options: []) as? [String: AnyObject] {
-                    dispatch_async(dispatch_get_main_queue()) {
+                if let body = body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: AnyObject] {
+                    DispatchQueue.main.async {
                         if let token = StripeToken(dictionary: json) {
                             completion(token, nil)
                         } else {
                             completion(nil, NSError(domain: "WatchOSStripeDomain", code: 0, userInfo: [
                                 NSLocalizedDescriptionKey: "Unknown error",
                                 WatchOSStripeErrorKey: json
-                            ]))
+                                ]))
                         }
                     }
                 }
-            } catch let error as NSError {
-                dispatch_async(dispatch_get_main_queue()) {
+            } catch let error {
+                DispatchQueue.main.async {
                     completion(nil, error)
                 }
             }
-        }.resume()
+            }.resume()
     }
 
     /**
@@ -93,12 +93,12 @@ public class WatchOSStripeManager {
      - parameter payment: Payment object received from `func paymentAuthorizationController(controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: (PKPaymentAuthorizationStatus) -> Void) {`
      - parameter completion: Will contain either Token or Error
      */
-    func createTokenWithPayment(payment: PKPayment, completion: (StripeToken?, NSError?) -> Void) {
-        createTokenWithPaymentData(WatchOSStripeManager.formEncodedDataForPayment(payment), completion: completion)
+    func createToken(withPayment payment: PKPayment, completion: @escaping (StripeToken?, Error?) -> Void) {
+        createToken(withPaymentData: WatchOSStripeManager.formEncodedData(forPayment: payment), completion: completion)
     }
 
-    private func createTokenWithPaymentData(data: NSData, completion: (StripeToken?, NSError?) -> Void) {
-        startRequest("tokens", postData: data, completion: { object, error in
+    private func createToken(withPaymentData data: Data, completion: @escaping (StripeToken?, Error?) -> Void) {
+        startRequest(endpoint: "tokens", postData: data, completion: { object, error in
             if let token = object as? StripeToken {
                 completion(token, nil)
             } else if let error = error {
@@ -110,18 +110,19 @@ public class WatchOSStripeManager {
 
     /* The whole logic below is taken from Stripe-iOS-SDK */
 
-    private class func formEncodedDataForPayment(payment: PKPayment) -> NSData {
-        let set = NSCharacterSet.URLQueryAllowedCharacterSet().mutableCopy() as! NSMutableCharacterSet
-        set.removeCharactersInString("+=")
+    private class func formEncodedData(forPayment payment: PKPayment) -> Data {
+        var set = CharacterSet.urlQueryAllowed
+        set.remove(charactersIn: "+=")
 
-        let paymentString = String(data: payment.token.paymentData, encoding: NSUTF8StringEncoding)!.stringByAddingPercentEncodingWithAllowedCharacters(set)!
+        let paymentString = String(data: payment.token.paymentData, encoding: String.Encoding.utf8)!
+            .addingPercentEncoding(withAllowedCharacters: set)!
 
         var payloadString = "pk_token=\(paymentString)"
 
         if let billingContact = payment.billingContact {
             var params = [String: String]()
 
-            if let firstName = billingContact.name?.givenName, lastName = billingContact.name?.familyName {
+            if let firstName = billingContact.name?.givenName, let lastName = billingContact.name?.familyName {
                 params["name"] = "\(firstName) \(lastName)"
             }
 
@@ -134,17 +135,17 @@ public class WatchOSStripeManager {
             }
 
             for (key, value) in params {
-                let param = String(format: "&card[%@]=%@", key, value.stringByAddingPercentEncodingWithAllowedCharacters(set)!)
+                let param = String(format: "&card[%@]=%@", key, value.addingPercentEncoding(withAllowedCharacters: set)!)
                 payloadString = payloadString + param
             }
         }
 
         if let name = payment.token.paymentMethod.displayName {
-            payloadString = payloadString + "&pk_token_instrument_name=\(name.stringByAddingPercentEncodingWithAllowedCharacters(set)!)"
+            payloadString = payloadString + "&pk_token_instrument_name=\(name.addingPercentEncoding(withAllowedCharacters: set)!)"
         }
 
         if let network = payment.token.paymentMethod.network {
-            payloadString = payloadString + "&pk_token_payment_network=\(network.stringByAddingPercentEncodingWithAllowedCharacters(set)!)"
+            payloadString = payloadString + "&pk_token_payment_network=\(network.rawValue.addingPercentEncoding(withAllowedCharacters: set)!)"
         }
 
         var transactionIdentifier = payment.token.transactionIdentifier
@@ -153,33 +154,33 @@ public class WatchOSStripeManager {
         }
         payloadString = payloadString + "&pk_token_transaction_id=\(transactionIdentifier)"
 
-        return payloadString.dataUsingEncoding(NSUTF8StringEncoding)!
+        return payloadString.data(using: String.Encoding.utf8)!
     }
 
 
     private class func testTransactionIdentifier() -> String {
-        let uuid = NSUUID().UUIDString.stringByReplacingOccurrencesOfString("~", withString: "")
+        let uuid = NSUUID().uuidString.replacingOccurrences(of: "~", with: "")
 
         // Simulated cards don't have enough info yet. For now, use a fake Visa number
         let number = "4242424242424242"
 
         // Without the original PKPaymentRequest, we'll need to use fake data here.
         let amount = NSDecimalNumber(string: "0")
-        let cents = amount.decimalNumberByMultiplyingByPowerOf10(2).integerValue.description
+        let cents = amount.multiplying(byPowerOf10: 2).intValue.description
         let currency = "USD"
-        return ["ApplePayStubs", number, cents, currency, uuid].joinWithSeparator("~")
+        return ["ApplePayStubs", number, cents, currency, uuid].joined(separator: "~")
     }
 
 
     private class func stripeUserAgentDetails() -> String {
         var details: [String: AnyObject] = [
-            "lang": "objective-c",
-            "bindings_version": "8.0.5"
+            "lang": "objective-c" as AnyObject,
+            "bindings_version": "8.0.5" as AnyObject
         ]
 
-        details["os_version"] = WKInterfaceDevice.currentDevice().systemVersion
-        details["model"] = WKInterfaceDevice.currentDevice().localizedModel
+        details["os_version"] = WKInterfaceDevice.current().systemVersion as AnyObject
+        details["model"] = WKInterfaceDevice.current().localizedModel as AnyObject
 
-        return String(data: try! NSJSONSerialization.dataWithJSONObject(details, options: []), encoding: NSUTF8StringEncoding)!
+        return String(data: try! JSONSerialization.data(withJSONObject: details, options: []), encoding: String.Encoding.utf8)!
     }
 }

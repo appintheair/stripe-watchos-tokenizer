@@ -14,33 +14,34 @@ pod 'Stripe_watchOS', :branch => 'swift-2.3'
 ## Usage
 Start by providing you publishable key:
 ```
-WatchOSStripeManager.providePublishableKey("pk_test_<KEY>")
+WatchOSStripeManager.provide(publishableKey: "pk_test_<KEY>")
 ```
 
 Then some where in your code you'd probably want to create `PKPayment` (typically when you want to sell something). And present `PKPaymentAuthorizationController`
 ```
 let request = PKPaymentRequest()
 request.merchantIdentifier = "<MERCHANT_ID>"
-request.supportedNetworks = [PKPaymentNetworkAmex, PKPaymentNetworkMasterCard, PKPaymentNetworkVisa]
-request.merchantCapabilities = [.Capability3DS]
+request.supportedNetworks = [.amex, .masterCard, .visa]
+request.merchantCapabilities = [.capability3DS]
 request.countryCode = "US"
 request.currencyCode = "USD"
 request.paymentSummaryItems = [
-    PKPaymentSummaryItem(label: "App in the Air", amount: NSDecimalNumber(integer: 10))
+    PKPaymentSummaryItem(label: "App in the Air", amount: NSDecimalNumber(value: 10))
 ]
 
 let controller = PKPaymentAuthorizationController(paymentRequest: request)
 controller.delegate = self
-controller.presentWithCompletion(nil)
+controller.present(completion: nil)
 ```
 Then in `PKPaymentAuthorizationControllerDelegate` handle successful payment's authorization and generate token:
 ```
-    func paymentAuthorizationController(controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: (PKPaymentAuthorizationStatus) -> Void) {
-    WatchOSStripeManager.sharedManager.createTokenWithPayment(payment) { [weak self] token, error in
+func paymentAuthorizationController(_ controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: @escaping (PKPaymentAuthorizationStatus) -> Void) {
+
+    WatchOSStripeManager.sharedManager.createToken(withPayment: payment) { token, error in
         if let error = error {
             print(error)
-            self?.handlePaymentFailure()
-            completionHandler(.Failure)
+            self.handlePaymentFailure()
+            completion(.failure)
             return
         }
 
@@ -48,5 +49,6 @@ Then in `PKPaymentAuthorizationControllerDelegate` handle successful payment's a
 
         print("TOKEN FOR PAYMENT: \(token.tokenId)")
     }
+
 }
 ```
