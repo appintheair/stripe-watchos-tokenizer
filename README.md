@@ -1,5 +1,5 @@
 # stripe-watchos-tokenizer
-Allows to convert authorized PKPayment objects to Stipe tokens.
+Allows to convert authorized PKPayment objects to Stripe tokens.
 
 ## Installation
 Add the following line to your Podfile for Swift 3.0
