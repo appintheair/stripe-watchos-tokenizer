@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "Stripe_watchOS"
-  s.version          = "0.1.7"
+  s.version          = "0.1.0"
   s.summary          = "Stripe watchOS helper"
 
   s.description      = <<-DESC
