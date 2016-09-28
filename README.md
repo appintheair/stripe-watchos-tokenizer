@@ -52,3 +52,5 @@ func paymentAuthorizationController(_ controller: PKPaymentAuthorizationControll
 
 }
 ```
+## License
+Stripe_watchOS is available under the MIT license. See the LICENSE file for more info.
