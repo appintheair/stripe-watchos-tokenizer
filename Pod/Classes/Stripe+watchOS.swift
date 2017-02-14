@@ -93,7 +93,7 @@ public class WatchOSStripeManager {
      - parameter payment: Payment object received from `func paymentAuthorizationController(controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: (PKPaymentAuthorizationStatus) -> Void) {`
      - parameter completion: Will contain either Token or Error
      */
-    func createToken(with payment: PKPayment, completion: @escaping (StripeToken?, Error?) -> Void) {
+    public func createToken(with payment: PKPayment, completion: @escaping (StripeToken?, Error?) -> Void) {
         createToken(with: WatchOSStripeManager.formEncodedData(for: payment), completion: completion)
     }
 
