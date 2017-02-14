@@ -37,7 +37,7 @@ Then in `PKPaymentAuthorizationControllerDelegate` handle successful payment's a
 ```
 func paymentAuthorizationController(_ controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: @escaping (PKPaymentAuthorizationStatus) -> Void) {
 
-    WatchOSStripeManager.sharedManager.createToken(withPayment: payment) { token, error in
+    WatchOSStripeManager.shared.createToken(with: payment) { token, error in
         if let error = error {
             print(error)
             self.handlePaymentFailure()

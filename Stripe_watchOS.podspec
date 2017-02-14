@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "Stripe_watchOS"
-  s.version          = "0.1.1"
+  s.version          = "0.1.2"
   s.summary          = "Stripe watchOS helper"
 
   s.description      = <<-DESC
@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.author           = { "Sergey Pronin" => "sergey.pronin@appintheair.mobi" }
   s.source           = { :git => "https://github.com/appintheair/stripe-watchos-tokenizer.git", :tag => s.version.to_s }
 
-  s.platform     = :watchos, '3.0'
+  s.platform     = :watchos, '2.0'
   s.requires_arc = true
 
   s.source_files = 'Pod/Classes/**/*'

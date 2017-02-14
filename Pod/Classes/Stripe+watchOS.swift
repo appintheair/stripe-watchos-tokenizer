@@ -2,41 +2,41 @@ import Foundation
 import WatchKit
 import PassKit
 
-let StripeBaseURL = NSURL(string: "https://api.stripe.com/v1")!
-let StripeAPIVersion = "2015-10-12"
-
-///NSError's userInfo will contain this key if error occurred communicating data to Stripe API
-public let WatchOSStripeErrorKey = "WatchOSStripeErrorKey"
-
 ///The simplest wrapper around Stripe Payment Token
 public struct StripeToken {
     public let tokenId: String
     public let livemode: Bool
-    public let created: NSDate
+    public let created: Date
 
-    init?(dictionary: [String: AnyObject]) {
+    init?(dictionary: [String: Any]) {
         guard let id = dictionary["id"] as? String,
             let liveMode = dictionary["livemode"] as? Bool,
             let created = dictionary["created"] as? Double else { return nil }
 
         self.tokenId = id
         self.livemode = liveMode
-        self.created = NSDate(timeIntervalSince1970: created)
+        self.created = Date(timeIntervalSince1970: created)
     }
 }
 
 @available(watchOSApplicationExtension 3.0, *)
 public class WatchOSStripeManager {
 
+    static let StripeBaseURL = URL(string: "https://api.stripe.com/v1")!
+    static let StripeAPIVersion = "2015-10-12"
+
+    ///Error's userInfo will contain this key if error occurred communicating data to Stripe API
+    public static let WatchOSStripeErrorKey = "WatchOSStripeErrorKey"
+
     ///Should call this before providing making any requests
-    public class func provide(publishableKey key: String) {
+    public static func provide(publishableKey key: String) {
         let sessionConfiguration = URLSessionConfiguration.default
         sessionConfiguration.httpAdditionalHeaders = [
             "X-Stripe-User-Agent": WatchOSStripeManager.stripeUserAgentDetails(),
             "Stripe-Version": StripeAPIVersion,
             "Authorization": "Bearer \(key)"
         ]
-        sharedManager.urlSession = URLSession(configuration: sessionConfiguration)
+        shared.urlSession = URLSession(configuration: sessionConfiguration)
     }
 
     private init() {
@@ -44,7 +44,7 @@ public class WatchOSStripeManager {
     }
 
     ///Main entry point
-    public static let sharedManager = WatchOSStripeManager()
+    public static let shared = WatchOSStripeManager()
 
     private var urlSession: URLSession!
 
@@ -52,7 +52,7 @@ public class WatchOSStripeManager {
     private func startRequest(endpoint: String, postData: Data, completion: @escaping (Any?, Error?) -> Void) {
         assert(urlSession != nil, "Publishable key should be provided before making a request")
 
-        let url = StripeBaseURL.appendingPathComponent(endpoint)!
+        let url = WatchOSStripeManager.StripeBaseURL.appendingPathComponent(endpoint)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = postData
@@ -67,14 +67,14 @@ public class WatchOSStripeManager {
             }
 
             do {
-                if let body = body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: AnyObject] {
+                if let body = body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any] {
                     DispatchQueue.main.async {
                         if let token = StripeToken(dictionary: json) {
                             completion(token, nil)
                         } else {
                             completion(nil, NSError(domain: "WatchOSStripeDomain", code: 0, userInfo: [
                                 NSLocalizedDescriptionKey: "Unknown error",
-                                WatchOSStripeErrorKey: json
+                                WatchOSStripeManager.WatchOSStripeErrorKey: json
                                 ]))
                         }
                     }
@@ -93,11 +93,11 @@ public class WatchOSStripeManager {
      - parameter payment: Payment object received from `func paymentAuthorizationController(controller: PKPaymentAuthorizationController, didAuthorizePayment payment: PKPayment, completion: (PKPaymentAuthorizationStatus) -> Void) {`
      - parameter completion: Will contain either Token or Error
      */
-    func createToken(withPayment payment: PKPayment, completion: @escaping (StripeToken?, Error?) -> Void) {
-        createToken(withPaymentData: WatchOSStripeManager.formEncodedData(forPayment: payment), completion: completion)
+    func createToken(with payment: PKPayment, completion: @escaping (StripeToken?, Error?) -> Void) {
+        createToken(with: WatchOSStripeManager.formEncodedData(for: payment), completion: completion)
     }
 
-    private func createToken(withPaymentData data: Data, completion: @escaping (StripeToken?, Error?) -> Void) {
+    private func createToken(with data: Data, completion: @escaping (StripeToken?, Error?) -> Void) {
         startRequest(endpoint: "tokens", postData: data, completion: { object, error in
             if let token = object as? StripeToken {
                 completion(token, nil)
@@ -110,7 +110,7 @@ public class WatchOSStripeManager {
 
     /* The whole logic below is taken from Stripe-iOS-SDK */
 
-    private class func formEncodedData(forPayment payment: PKPayment) -> Data {
+    private static func formEncodedData(for payment: PKPayment) -> Data {
         var set = CharacterSet.urlQueryAllowed
         set.remove(charactersIn: "+=")
 
@@ -158,7 +158,7 @@ public class WatchOSStripeManager {
     }
 
 
-    private class func testTransactionIdentifier() -> String {
+    private static func testTransactionIdentifier() -> String {
         let uuid = NSUUID().uuidString.replacingOccurrences(of: "~", with: "")
 
         // Simulated cards don't have enough info yet. For now, use a fake Visa number
@@ -172,14 +172,14 @@ public class WatchOSStripeManager {
     }
 
 
-    private class func stripeUserAgentDetails() -> String {
-        var details: [String: AnyObject] = [
-            "lang": "objective-c" as AnyObject,
-            "bindings_version": "8.0.5" as AnyObject
+    private static func stripeUserAgentDetails() -> String {
+        var details: [String: Any] = [
+            "lang": "objective-c",
+            "bindings_version": "8.0.5"
         ]
 
-        details["os_version"] = WKInterfaceDevice.current().systemVersion as AnyObject
-        details["model"] = WKInterfaceDevice.current().localizedModel as AnyObject
+        details["os_version"] = WKInterfaceDevice.current().systemVersion
+        details["model"] = WKInterfaceDevice.current().localizedModel
 
         return String(data: try! JSONSerialization.data(withJSONObject: details, options: []), encoding: String.Encoding.utf8)!
     }
